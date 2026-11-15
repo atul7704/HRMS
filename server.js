@@ -24,6 +24,13 @@ app.use("/company", companyRoute)
 
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-app.listen(PORT, HOST, () => {
-  console.log(`Server is running at http://${HOST}:${PORT}`);
+// app.listen(PORT, HOST, () => {
+//   console.log(`Server is running at http://${HOST}:${PORT}`);
+// });
+
+
+
+
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server is running on port ${PORT}`);
 });
