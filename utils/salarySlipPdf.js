@@ -22,6 +22,7 @@ const COLORS = {
 
 const LAYOUT = {
   margin: 36,
+  headerShift: 20,
   infoRow: 22,
   payHeader: 24,
   payRow: 24,
@@ -229,6 +230,7 @@ function drawTotal(doc, fonts, x, y, width, label, value) {
 function renderSalarySlip(doc, payroll, employee, company) {
   const fonts = setupFonts(doc)
   const M = LAYOUT.margin
+  const S = LAYOUT.headerShift
   const W = doc.page.width
   const H = doc.page.height
   const CW = W - M * 2
@@ -243,7 +245,7 @@ function renderSalarySlip(doc, payroll, employee, company) {
   if (logoPath) {
     try {
       const logo = prepareLogo(logoPath)
-      const box = logo.trimmed ? { y: 16, width: 230, height: 76 } : { y: 8, width: 340, height: 90 }
+      const box = logo.trimmed ? { y: 10, width: 295, height: 108 } : { y: 6, width: 340, height: 112 }
       doc.image(logo.source, M, box.y, { fit: [box.width, box.height], align: 'left', valign: 'center' })
       logoDrawn = true
     } catch {
@@ -265,20 +267,20 @@ function renderSalarySlip(doc, payroll, employee, company) {
     put(doc, fit(doc, value, 160, fonts.regular, 8), W - M - 160, baseline, { font: fonts.regular, size: 8, color: COLORS.ink })
   })
 
-  doc.save().moveTo(M, 100).lineTo(W - M, 100).lineWidth(2).strokeColor(COLORS.accent).stroke().restore()
+  doc.save().moveTo(M, 100 + S).lineTo(W - M, 100 + S).lineWidth(2).strokeColor(COLORS.accent).stroke().restore()
 
-  doc.save().rect(M, 110, CW, 28).fill(COLORS.ink).restore()
-  doc.save().rect(M, 110, 6, 28).fill(COLORS.accent).restore()
-  put(doc, `PAYSLIP FOR THE MONTH OF ${monthName.toUpperCase()} ${year}`, M, 128, { font: fonts.bold, size: 11, color: COLORS.white, width: CW, align: 'center' })
+  doc.save().rect(M, 110 + S, CW, 28).fill(COLORS.ink).restore()
+  doc.save().rect(M, 110 + S, 6, 28).fill(COLORS.accent).restore()
+  put(doc, `PAYSLIP FOR THE MONTH OF ${monthName.toUpperCase()} ${year}`, M, 128 + S, { font: fonts.bold, size: 11, color: COLORS.white, width: CW, align: 'center' })
 
-  put(doc, 'EMPLOYEE DETAILS', M, 166, { font: fonts.bold, size: 9, color: COLORS.ink })
-  doc.save().moveTo(M, 171).lineTo(M + 95, 171).lineWidth(1.5).strokeColor(COLORS.accent).stroke().restore()
+  put(doc, 'EMPLOYEE DETAILS', M, 166 + S, { font: fonts.bold, size: 9, color: COLORS.ink })
+  doc.save().moveTo(M, 171 + S).lineTo(M + 95, 171 + S).lineWidth(1.5).strokeColor(COLORS.accent).stroke().restore()
 
   if (payroll.salary_revision?.effective_from) {
     const badgeWidth = 250
     const badgeX = W - M - badgeWidth
-    doc.save().roundedRect(badgeX, 153, badgeWidth, 18, 4).fill(COLORS.total).restore()
-    put(doc, `REVISED SALARY  ·  EFFECTIVE ${dateLabel(payroll.salary_revision.effective_from).toUpperCase()}`, badgeX, 165, { font: fonts.bold, size: 7, color: COLORS.ink, width: badgeWidth, align: 'center' })
+    doc.save().roundedRect(badgeX, 153 + S, badgeWidth, 18, 4).fill(COLORS.total).restore()
+    put(doc, `REVISED SALARY  ·  EFFECTIVE ${dateLabel(payroll.salary_revision.effective_from).toUpperCase()}`, badgeX, 165 + S, { font: fonts.bold, size: 7, color: COLORS.ink, width: badgeWidth, align: 'center' })
   }
 
   const infoRows = [
@@ -292,7 +294,7 @@ function renderSalarySlip(doc, payroll, employee, company) {
     // ['PAN', kyc.pan, 'IFSC Code', kyc.ifsc],
     // ['PAN', kyc.pan],
   ]
-  const infoTop = 180
+  const infoTop = 180 + S
   drawInfoTable(doc, fonts, M, infoTop, CW, infoRows)
 
   const earnings = [
