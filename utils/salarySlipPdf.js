@@ -22,7 +22,7 @@ const COLORS = {
 
 const LAYOUT = {
   margin: 36,
-  headerShift: 20,
+  headerShift: 36,
   infoRow: 22,
   payHeader: 24,
   payRow: 24,
@@ -245,7 +245,7 @@ function renderSalarySlip(doc, payroll, employee, company) {
   if (logoPath) {
     try {
       const logo = prepareLogo(logoPath)
-      const box = logo.trimmed ? { y: 10, width: 295, height: 108 } : { y: 6, width: 340, height: 112 }
+      const box = logo.trimmed ? { y: 8, width: 320, height: 120 } : { y: 6, width: 330, height: 124 }
       doc.image(logo.source, M, box.y, { fit: [box.width, box.height], align: 'left', valign: 'center' })
       logoDrawn = true
     } catch {
@@ -253,7 +253,7 @@ function renderSalarySlip(doc, payroll, employee, company) {
     }
   }
   if (!logoDrawn) {
-    put(doc, fit(doc, companyName, 280, fonts.bold, 16), M, 64, { font: fonts.bold, size: 16, color: COLORS.ink })
+    put(doc, fit(doc, companyName, 280, fonts.bold, 16), M, 64 + S / 2, { font: fonts.bold, size: 16, color: COLORS.ink })
   }
 
   const contactRows = [
@@ -262,9 +262,9 @@ function renderSalarySlip(doc, payroll, employee, company) {
     ['Web:', company.website],
   ].filter(([, value]) => value)
   contactRows.forEach(([label, value], index) => {
-    const baseline = 45 + index * 14
-    put(doc, label, W - M - 215, baseline, { font: fonts.bold, size: 8, color: COLORS.ink })
-    put(doc, fit(doc, value, 160, fonts.regular, 8), W - M - 160, baseline, { font: fonts.regular, size: 8, color: COLORS.ink })
+    const baseline = 41 + S / 2 + index * 14
+    put(doc, label, W - M - 190, baseline, { font: fonts.bold, size: 8, color: COLORS.ink })
+    put(doc, fit(doc, value, 140, fonts.regular, 8), W - M - 140, baseline, { font: fonts.regular, size: 8, color: COLORS.ink })
   })
 
   doc.save().moveTo(M, 100 + S).lineTo(W - M, 100 + S).lineWidth(2).strokeColor(COLORS.accent).stroke().restore()
