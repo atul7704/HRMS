@@ -20,7 +20,6 @@ const { Admin, Role,Company, Employee,
    } = require('../models');
 const { isValidDateOnly, normalizeSalaryStructure, payrollPeriodEnd, resolveEffectiveSalary } = require('../utils/salaryRevision');
 const generateEmployeeId = require('../utils/generateEmployeeId');
-const generatePassword = require('../utils/generatePassword');
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PAN_REGEX = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/i;
 
@@ -237,6 +236,7 @@ exports.createEmployee = async (req, res) => {
     const {
       name,
       email,
+      password,
       phone,
       gender,
       dob,
@@ -271,6 +271,11 @@ exports.createEmployee = async (req, res) => {
       });
     }
 
+    if (typeof password !== 'string' || password.length < 8 || Buffer.byteLength(password, 'utf8') > 72) {
+      await transaction.rollback();
+      return res.status(400).json({ success: false, message: 'Password must be between 8 and 72 characters.' });
+    }
+
     if (!EMAIL_REGEX.test(email)) {
       await transaction.rollback();
       return res.status(400).json({
@@ -283,7 +288,7 @@ exports.createEmployee = async (req, res) => {
       await transaction.rollback();
       return res.status(400).json({
         success: false,
-        message: 'PAN number is required to generate password',
+        message: 'PAN number is required.',
       });
     }
 
@@ -299,7 +304,7 @@ exports.createEmployee = async (req, res) => {
       await transaction.rollback();
       return res.status(400).json({
         success: false,
-        message: 'Date of birth is required to generate password',
+        message: 'Date of birth is required.',
       });
     }
 
@@ -329,8 +334,7 @@ exports.createEmployee = async (req, res) => {
     }
 
     const employee_id = await generateEmployeeId(company_id);
-    const plainPassword = generatePassword(kyc.pan, dob);
-    const hashedPassword = await bcrypt.hash(plainPassword, 10);
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     const employee = await Employee.create(
       {
@@ -457,7 +461,6 @@ exports.createEmployee = async (req, res) => {
         name: employee.name,
         email: employee.email,
         profile_image: employee.profile_image, 
-        password: plainPassword,
       },
     });
   } catch (err) {
