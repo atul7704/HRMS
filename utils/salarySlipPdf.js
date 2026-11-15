@@ -53,6 +53,7 @@ const dayCount = (value) => {
   if (value === null || value === undefined || value === '' || !Number.isFinite(parsed)) return '—'
   return Number.isInteger(parsed) ? String(parsed) : String(Number(parsed.toFixed(2)))
 }
+const displayWebsite = (value) => String(value ?? '').trim().replace(/^https?:\/\//i, '').replace(/\/+$/, '')
 const safeFilenamePart = (value) => cleanText(value, 'employee').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 48) || 'employee'
 
 function dateLabel(value) {
@@ -241,11 +242,15 @@ function renderSalarySlip(doc, payroll, employee, company) {
   const logoPath = resolveLocalLogo(company.logo)
   const kyc = employee.kyc || {}
 
+  const contactLabelX = W - M - 165
+  const contactValueX = W - M - 125
+  const logoWidth = contactLabelX - M - 10
+
   let logoDrawn = false
   if (logoPath) {
     try {
       const logo = prepareLogo(logoPath)
-      const box = logo.trimmed ? { y: 8, width: 320, height: 120 } : { y: 6, width: 330, height: 124 }
+      const box = logo.trimmed ? { y: 8, width: logoWidth, height: 120 } : { y: 6, width: logoWidth, height: 124 }
       doc.image(logo.source, M, box.y, { fit: [box.width, box.height], align: 'left', valign: 'center' })
       logoDrawn = true
     } catch {
@@ -253,18 +258,18 @@ function renderSalarySlip(doc, payroll, employee, company) {
     }
   }
   if (!logoDrawn) {
-    put(doc, fit(doc, companyName, 280, fonts.bold, 16), M, 64 + S / 2, { font: fonts.bold, size: 16, color: COLORS.ink })
+    put(doc, fit(doc, companyName, logoWidth, fonts.bold, 16), M, 64 + S / 2, { font: fonts.bold, size: 16, color: COLORS.ink })
   }
 
   const contactRows = [
     ['CIN No:', company.cin_number],
     ['Email:', company.email],
-    ['Web:', company.website],
+    ['Web:', displayWebsite(company.website)],
   ].filter(([, value]) => value)
   contactRows.forEach(([label, value], index) => {
     const baseline = 41 + S / 2 + index * 14
-    put(doc, label, W - M - 190, baseline, { font: fonts.bold, size: 8, color: COLORS.ink })
-    put(doc, fit(doc, value, 140, fonts.regular, 8), W - M - 140, baseline, { font: fonts.regular, size: 8, color: COLORS.ink })
+    put(doc, label, contactLabelX, baseline, { font: fonts.bold, size: 8, color: COLORS.ink })
+    put(doc, fit(doc, value, 125, fonts.regular, 8), contactValueX, baseline, { font: fonts.regular, size: 8, color: COLORS.ink })
   })
 
   doc.save().moveTo(M, 100 + S).lineTo(W - M, 100 + S).lineWidth(2).strokeColor(COLORS.accent).stroke().restore()
