@@ -229,7 +229,7 @@ exports.downloadMySalarySlip = async (req, res) => {
     });
 
     if (!payroll) return res.status(404).json({ success: false, message: 'Salary slip not found.' });
-    return sendSalarySlipPdf(res, payroll);
+    return await sendSalarySlipPdf(res, payroll);
   } catch (error) {
     console.error('Employee salary slip download error:', error);
     if (res.headersSent) return res.destroy(error);

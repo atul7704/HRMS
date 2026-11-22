@@ -1,5 +1,7 @@
 const fs = require('fs')
 const path = require('path')
+const https = require('https')
+const http = require('http')
 const PDFDocument = require('pdfkit')
 
 let PNG = null
@@ -114,8 +116,104 @@ function resolveLocalLogo(logo) {
   }
 }
 
+const MAX_LOGO_BYTES = 5 * 1024 * 1024
+
+function configuredApiOrigin() {
+  const value = process.env.PUBLIC_API_URL || process.env.API_PUBLIC_URL
+  if (!value) throw new Error('Set PUBLIC_API_URL to the public backend origin so salary slips can load company logos.')
+
+  const apiUrl = new URL(value)
+  if (!['http:', 'https:'].includes(apiUrl.protocol)) throw new Error('PUBLIC_API_URL must use HTTP or HTTPS.')
+  if (process.env.NODE_ENV === 'production' && apiUrl.protocol !== 'https:') {
+    throw new Error('PUBLIC_API_URL must use HTTPS in production.')
+  }
+  if (apiUrl.pathname !== '/' || apiUrl.search || apiUrl.hash) {
+    throw new Error('PUBLIC_API_URL must contain only the backend origin, without a path.')
+  }
+  return apiUrl.origin
+}
+
+function fetchCompanyLogo(url) {
+  return new Promise((resolve, reject) => {
+    const transport = url.protocol === 'https:' ? https : http
+    const request = transport.get(url, { headers: { Accept: 'image/png, image/jpeg' } }, (response) => {
+      if (response.statusCode !== 200) {
+        response.resume()
+        reject(new Error(`Company logo request failed with status ${response.statusCode}.`))
+        return
+      }
+
+      const contentType = String(response.headers['content-type'] || '').split(';')[0].trim().toLowerCase()
+      if (!['image/png', 'image/jpeg'].includes(contentType)) {
+        response.resume()
+        reject(new Error('Company logo URL did not return a PNG or JPEG image.'))
+        return
+      }
+
+      const declaredSize = Number(response.headers['content-length'])
+      if (Number.isFinite(declaredSize) && declaredSize > MAX_LOGO_BYTES) {
+        response.resume()
+        reject(new Error('Company logo exceeds the 5 MB PDF limit.'))
+        return
+      }
+
+      const chunks = []
+      let totalSize = 0
+      response.on('data', (chunk) => {
+        totalSize += chunk.length
+        if (totalSize > MAX_LOGO_BYTES) {
+          request.destroy(new Error('Company logo exceeds the 5 MB PDF limit.'))
+          return
+        }
+        chunks.push(chunk)
+      })
+      response.on('end', () => {
+        const image = Buffer.concat(chunks)
+        const isPng = image.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
+        const isJpeg = image[0] === 0xff && image[1] === 0xd8 && image[image.length - 2] === 0xff && image[image.length - 1] === 0xd9
+        if ((contentType === 'image/png' && !isPng) || (contentType === 'image/jpeg' && !isJpeg)) {
+          reject(new Error('Company logo response is not a valid PNG or JPEG image.'))
+          return
+        }
+        resolve(image)
+      })
+      response.on('error', reject)
+    })
+
+    request.setTimeout(5000, () => request.destroy(new Error('Timed out loading the company logo.')))
+    request.on('error', reject)
+  })
+}
+
+async function resolveLogoSource(logo) {
+  if (!logo) return null
+
+  const localLogo = resolveLocalLogo(logo)
+  if (localLogo) return localLogo
+
+  const publicOrigin = configuredApiOrigin()
+  let logoUrl
+  if (/^https?:\/\//i.test(String(logo))) {
+    logoUrl = new URL(String(logo))
+  } else {
+    const relativePath = String(logo).replace(/\\/g, '/')
+    logoUrl = new URL(relativePath.startsWith('/') ? relativePath : `/${relativePath}`, publicOrigin)
+  }
+
+  const allowedOrigin = new URL(publicOrigin)
+  if (logoUrl.origin !== allowedOrigin.origin) throw new Error('Company logo URL must use the configured public backend origin.')
+  const decodedPath = decodeURIComponent(logoUrl.pathname)
+  if (!decodedPath.startsWith('/uploads/companies/') || decodedPath.split('/').includes('..')) {
+    throw new Error('Company logo must be stored under /uploads/companies/.')
+  }
+  if (!/\.(png|jpe?g)$/i.test(decodedPath)) throw new Error('Company logo must be a PNG or JPEG image.')
+
+  return fetchCompanyLogo(logoUrl)
+}
+
 function prepareLogo(logoPath) {
   const original = { source: logoPath, trimmed: false }
+  if (Buffer.isBuffer(logoPath)) return original
   if (!PNG || !/\.png$/i.test(logoPath)) return original
   try {
     const key = `${logoPath}:${fs.statSync(logoPath).mtimeMs}`
@@ -228,7 +326,7 @@ function drawTotal(doc, fonts, x, y, width, label, value) {
   put(doc, amount(value), x + 10, y + 19, { font: fonts.bold, size: 10, color: COLORS.ink, width: width - 20, align: 'right' })
 }
 
-function renderSalarySlip(doc, payroll, employee, company) {
+function renderSalarySlip(doc, payroll, employee, company, logoSource) {
   const fonts = setupFonts(doc)
   const M = LAYOUT.margin
   const S = LAYOUT.headerShift
@@ -239,7 +337,6 @@ function renderSalarySlip(doc, payroll, employee, company) {
   const month = Number(payroll.month)
   const monthName = new Date(year, month - 1, 1).toLocaleString('en', { month: 'long' })
   const companyName = cleanText(company.company_name, 'HRMS')
-  const logoPath = resolveLocalLogo(company.logo)
   const kyc = employee.kyc || {}
 
   const contactLabelX = W - M - 165
@@ -247,14 +344,14 @@ function renderSalarySlip(doc, payroll, employee, company) {
   const logoWidth = contactLabelX - M - 10
 
   let logoDrawn = false
-  if (logoPath) {
+  if (logoSource) {
     try {
-      const logo = prepareLogo(logoPath)
+      const logo = prepareLogo(logoSource)
       const box = logo.trimmed ? { y: 8, width: logoWidth, height: 120 } : { y: 6, width: logoWidth, height: 124 }
       doc.image(logo.source, M, box.y, { fit: [box.width, box.height], align: 'left', valign: 'center' })
       logoDrawn = true
-    } catch {
-      logoDrawn = false
+    } catch (error) {
+      throw new Error(`Unable to embed the company logo in the salary slip: ${error.message}`)
     }
   }
   if (!logoDrawn) {
@@ -361,13 +458,15 @@ function renderSalarySlip(doc, payroll, employee, company) {
   put(doc, fit(doc, operationCenter, CW - 100, fonts.regular, 7.5), M + 100, H - 18, { font: fonts.regular, size: 7.5, color: COLORS.text })
 }
 
-function sendSalarySlipPdf(res, payrollRecord) {
+async function sendSalarySlipPdf(res, payrollRecord) {
   const payroll = toPlain(payrollRecord)
   const employee = toPlain(payroll.employee)
   const company = toPlain(payroll.company)
   if (!payroll.id || !employee.id || !company.id) {
     throw new Error('Required salary slip relations are unavailable.')
   }
+
+  const logoSource = company.logo ? await resolveLogoSource(company.logo) : null
 
   const filename = `SalarySlip_${safeFilenamePart(employee.employee_id)}_${Number(payroll.month)}_${Number(payroll.year)}.pdf`
   const doc = new PDFDocument({ size: 'A4', margin: 0, info: { Title: 'Salary Slip', Author: cleanText(company.company_name, 'HRMS') } })
@@ -383,7 +482,7 @@ function sendSalarySlipPdf(res, payrollRecord) {
     else res.destroy(error)
   })
   doc.pipe(res)
-  renderSalarySlip(doc, payroll, employee, company)
+  renderSalarySlip(doc, payroll, employee, company, logoSource)
   doc.end()
 }
 
