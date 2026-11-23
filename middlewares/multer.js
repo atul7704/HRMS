@@ -22,6 +22,7 @@ const storage = multer.diskStorage({
     let folder = 'uploads/misc';
 
     if (file.fieldname === 'logo') folder = 'uploads/companies';
+    else if (file.fieldname === 'attendance_photo') folder = 'uploads/attendance';
     else if (file.fieldname === 'profile_pic') folder = 'uploads/employees';
     else if (file.fieldname === 'document') folder = 'uploads/employees/docs';
 

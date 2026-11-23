@@ -4,6 +4,7 @@ const companyAuthMiddleware=require('../middlewares/companyAuthMiddleware');
 const companyController=require('../controllers/companyController');
 const masterController=require('../controllers/masterController');
 const {upload}=require('../middlewares/multer');
+router.use('/attendance', require('./companyAttendanceRoutes'));
 router.post("/login", companyController.companyLogin);
 router.post('/forget-password', companyController.forgetCompanyPassword);
 router.post('/verify-reset-otp', companyController.verifyCompanyResetOtp);

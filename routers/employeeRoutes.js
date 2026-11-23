@@ -3,6 +3,7 @@ const router = express.Router();
 const employeeController = require('../controllers/employeeController');
 const employeeAuthMiddleware = require('../middlewares/employeeAuthMiddleware');
 const { upload } = require('../middlewares/multer');
+router.use('/attendance', require('./employeeAttendanceRoutes'));
 
 router.post('/login', employeeController.login);
 router.post('/forget-password', employeeController.forgetPassword);

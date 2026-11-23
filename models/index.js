@@ -17,6 +17,7 @@ const MasterBank = require('./masterbank')(sequelize, DataTypes);
 const MasterDepartment = require('./masterdepartment')(sequelize, DataTypes);
 const MasterDesignation = require('./masterdesignation')(sequelize, DataTypes);
 const Attendance = require('./attendance')(sequelize, DataTypes);
+const AttendanceEvent = require('./attendanceevent')(sequelize, DataTypes);
 const Leave = require('./leave')(sequelize, DataTypes);
 const LeaveBalance = require('./leavebalance')(sequelize, DataTypes);
 const Holiday = require('./holiday')(sequelize, DataTypes);
@@ -47,6 +48,7 @@ const db = {
   MasterDepartment,
   MasterDesignation,
   Attendance,
+  AttendanceEvent,
   Leave,
   LeaveBalance,
   Holiday,
@@ -99,6 +101,8 @@ MasterDesignation.belongsTo(MasterDepartment, { foreignKey: 'department_id', as:
 
 Employee.hasMany(Attendance, { foreignKey: 'employee_id', as: 'attendances' });
 Attendance.belongsTo(Employee, { foreignKey: 'employee_id', as: 'employee' });
+Attendance.hasMany(AttendanceEvent, { foreignKey: 'attendance_id', as: 'events' });
+AttendanceEvent.belongsTo(Attendance, { foreignKey: 'attendance_id', as: 'attendance' });
 
 Company.hasMany(Attendance, { foreignKey: 'company_id', as: 'attendances' });
 Attendance.belongsTo(Company, { foreignKey: 'company_id', as: 'company' });

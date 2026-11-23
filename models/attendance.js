@@ -16,13 +16,15 @@ module.exports = (sequelize, DataTypes) => {
   Attendance.init({
     employee_id: DataTypes.INTEGER,
     company_id: DataTypes.INTEGER,
-    date: DataTypes.DATE,
+    date: DataTypes.DATEONLY,
     check_in: DataTypes.TIME,
     check_out: DataTypes.TIME,
     working_hours: DataTypes.DECIMAL,
     overtime_hours: DataTypes.DECIMAL,
     status: DataTypes.STRING,
-    remarks: DataTypes.STRING
+    remarks: DataTypes.STRING,
+    check_in_photo: DataTypes.STRING(255),
+    check_out_photo: DataTypes.STRING(255),
   }, {
     sequelize,
     modelName: 'attendances',

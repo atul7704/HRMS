@@ -486,8 +486,8 @@ exports.getEmployees = async (req, res) => {
 
     const company_id = req.user.id;
 
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 10, 1), 100);
     const offset = (page - 1) * limit;
 
     const {
@@ -498,9 +498,17 @@ exports.getEmployees = async (req, res) => {
       mobile,
       total_salary,
       status,
+      search,
     } = req.query;
 
     const where = { company_id };
+    if (search) where[Op.or] = [
+      { name: { [Op.like]: `%${search}%` } },
+      { employee_id: { [Op.like]: `%${search}%` } },
+      { email: { [Op.like]: `%${search}%` } },
+      { department: { [Op.like]: `%${search}%` } },
+      { designation: { [Op.like]: `%${search}%` } },
+    ];
 
     if (status) {
       where.status = status;
